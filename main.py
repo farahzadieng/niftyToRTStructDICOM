@@ -22,6 +22,7 @@ class Process:
     def __init__(self,ctDir,rsPath):
         self.position, self.SOPClass, self.SOPinstance, self.header , ct = self.get_ct(ctDir)
         self.contour = self.get_contour(rsPath, self.position)
+        self.ds = self.RT_struct(ct)
     
     # EDIT    
     def get_contour(self,rsPath,imagePosition):
@@ -106,6 +107,54 @@ class Process:
         ds.ReviewDate = ''
         ds.ReviewTime = ''
         ds.ReviewerName = ''
+        ds.ReferencedFrameOfReferenceSequence = Sequence()
+        ds.ReferencedFrameOfReferenceSequence.append(Dataset())
+        ds.ReferencedFrameOfReferenceSequence[0].FrameOfReferenceUID = ct.FrameOfReferenceUID
+        ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence = Sequence()
+        ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence.append(Dataset())
+        ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].ReferencedSOPClassUID = UID('1.2.840.10008.3.1.2.3.2')
+        ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].ReferencedSOPInstanceUID = ct.StudyInstanceUID
+        ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence = Sequence()
+        ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence.append(Dataset())
+        ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].SeriesInstanceUID = ct.SeriesInstanceUID
+        ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence = Sequence()
+        for i in range(len(self.SOPClass)):
+            ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence.append(Dataset())
+            ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence[i].ReferencedSOPClassUID = self.SOPClass[int(self.position[i,0])]
+            ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence[i].ReferencedSOPInstanceUID = self.SOPinstance[int(self.position[i,0])]
+        ds = self.create_Body(ds,ct)
+        return ds
+        
+    def create_Body(self,ds,ct):
+        ds.StructureSetROISequence = Sequence()
+        ds.StructureSetROISequence.append(Dataset())
+        x = len(ds.StructureSetROISequence)
+        ds.StructureSetROISequence[x].ROINumber = '1'
+        ds.StructureSetROISequence[x].ReferencedFrameOfReferenceUID = ct.FrameOfReferenceUID
+        ds.StructureSetROISequence[x].ROIName = 'BODY'
+        ds.StructureSetROISequence[x].ROIGenerationAlgorithm = 'MANUAL'
+        ds.ROIContourSequence = Sequence()
+        ds.ROIContourSequence.append(Dataset())
+        ds.ROIContourSequence[x].ROIDisplayColor = [0, 255, 0]
+        ds.ROIContourSequence[x].ReferencedROINumber = '1'
+        ds.ROIContourSequence[x].ContourSequence = Sequence()
+        for i in range(len(self.contour)):
+            ds.ROIContourSequence[x].ContourSequence.append(Dataset())
+            ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence = Sequence()
+            ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence.append(Dataset())
+            ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence[0].ReferencedSOPClassUID = self.SOPClass(int(self.position[i,0]))
+            ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence[0].ReferencedSOPInstanceUID = self.SOPinstance(int(self.position[i,0]))
+            ds.ROIContourSequence[x].ContourSequence[i].ContourGeometricType = 'CLOSED_PLANAR'
+            ds.ROIContourSequence[x].ContourSequence[i].NumberOfContourPoints = str(int(len(self.contour[i])/3))
+            ds.ROIContourSequence[x].ContourSequence[i].ContourData = self.contour[i]
+        ds.RTROIObservationsSequence = Sequence()
+        ds.RTROIObservationsSequence.append(Dataset())
+        ds.RTROIObservationsSequence[0].ObservationNumber = '0'
+        ds.RTROIObservationsSequence[0].ReferencedROINumber = '1'
+        ds.RTROIObservationsSequence[0].ROIObservationLabel = 'BODY'
+        ds.RTROIObservationsSequence[0].RTROIInterpretedType = 'EXTERNAL'
+        ds.RTROIObservationsSequence[0].ROIInterpreter = ''
+        return ds
 
 class Header: 
     def __init__(self,ctPath,osSep,files,imagePosition):
@@ -134,7 +183,6 @@ def get_lists(args):
 if __name__ == '__main__':
     ctDir ,rsPath = get_lists(sys.argv)
     process = Process(ctDir,rsPath)
-    print(process.header.x0)
 
 
 """
