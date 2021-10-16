@@ -8,6 +8,7 @@
 """
 import sys,os, random
 import datetime
+from configparser import ConfigParser
 import numpy as np
 import nibabel as nib
 import pydicom
@@ -23,7 +24,8 @@ class Process:
         self.position, self.SOPClass, self.SOPinstance, self.header , ct = self.get_ct(ctDir)
         self.contour = self.get_contour(rsPath, self.position)
         self.ds = self.RT_struct(ct)
-    
+        self.ds = self.create_Body(ct)
+
     # EDIT    
     def get_contour(self,rsPath,imagePosition):
         rs = nib.load(rsPath).get_fdata()
@@ -58,7 +60,9 @@ class Process:
             SOPClassList[idx] = a.SOPClassUID
         imagePosition = imagePosition[np.argsort(imagePosition[:,4])]
         header = Header(ctDir,osSep,files,imagePosition)
-        ct = dcmread(ctDir+osSep+files[random.randint(range(len(files)))])
+        # ct = dcmread(ctDir+osSep+files[random.randint(range(len(files)))])
+        ct = dcmread(ctDir+osSep+files[random.randint(0,len(files))])
+
         return imagePosition,SOPClassList,SOPInstanceList, header , ct
         
     def RT_struct(self, ct):
@@ -72,6 +76,7 @@ class Process:
         ds = Dataset()
         ds.is_little_endian = False
         ds.is_implicit_VR = False
+        ds.file_meta = file_meta
         ds.SpecificCharacterSet = 'ISO_IR 192'
         dt = datetime.datetime.now()
         ds.InstanceCreationDate = dt.strftime('%Y%m%d')
@@ -122,13 +127,13 @@ class Process:
             ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence.append(Dataset())
             ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence[i].ReferencedSOPClassUID = self.SOPClass[int(self.position[i,0])]
             ds.ReferencedFrameOfReferenceSequence[0].RTReferencedStudySequence[0].RTReferencedSeriesSequence[0].ContourImageSequence[i].ReferencedSOPInstanceUID = self.SOPinstance[int(self.position[i,0])]
-        ds = self.create_Body(ds,ct)
         return ds
         
-    def create_Body(self,ds,ct):
+    def create_Body(self,ct):
+        ds = self.ds
         ds.StructureSetROISequence = Sequence()
         ds.StructureSetROISequence.append(Dataset())
-        x = len(ds.StructureSetROISequence)
+        x = len(ds.StructureSetROISequence)-1
         ds.StructureSetROISequence[x].ROINumber = '1'
         ds.StructureSetROISequence[x].ReferencedFrameOfReferenceUID = ct.FrameOfReferenceUID
         ds.StructureSetROISequence[x].ROIName = 'BODY'
@@ -142,8 +147,8 @@ class Process:
             ds.ROIContourSequence[x].ContourSequence.append(Dataset())
             ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence = Sequence()
             ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence.append(Dataset())
-            ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence[0].ReferencedSOPClassUID = self.SOPClass(int(self.position[i,0]))
-            ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence[0].ReferencedSOPInstanceUID = self.SOPinstance(int(self.position[i,0]))
+            ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence[0].ReferencedSOPClassUID = self.SOPClass[int(self.position[i,0])]
+            ds.ROIContourSequence[x].ContourSequence[i].ContourImageSequence[0].ReferencedSOPInstanceUID = self.SOPinstance[int(self.position[i,0])]
             ds.ROIContourSequence[x].ContourSequence[i].ContourGeometricType = 'CLOSED_PLANAR'
             ds.ROIContourSequence[x].ContourSequence[i].NumberOfContourPoints = str(int(len(self.contour[i])/3))
             ds.ROIContourSequence[x].ContourSequence[i].ContourData = self.contour[i]
@@ -170,19 +175,34 @@ class Header:
         self.pixelSize = infoLast1.PixelSpacing
         self.sliceSpacing = np.linalg.norm(origin2[2]-origin1[2])
         
-def get_lists(args):
-    try:
-        ctDir = args[1]
-        rsPath = args[2]
-    except:
-        print('The corect form to run the program :')
-        print('python main.py [path to ct directory] [path to nmp file]')
-    finally:
-        return ctDir, rsPath
-        
+# def get_lists(args):
+#     try:
+#         ctDir = args[1]
+#         rsPath = args[2]
+#     except:
+#         print('The corect form to run the program :')
+#         print('python main.py [path to ct directory] [path to nmp file]')
+#     finally:
+#         return ctDir, rsPath
+
+def get_lists():
+    cnf = ConfigParser()
+    cnf.read('config.ini')
+    ctDir = cnf['Path']['CT_Directory']
+    rsPath = cnf['Path']['Body']
+    saveLocation = cnf['Path']['save_Directory']
+    return ctDir, rsPath, saveLocation
+
+def saveOutput(rs, saveLocation):
+    suffix = '.dcm'
+    file_name = 'RS.'+str(rs.SOPInstanceUID)+suffix
+    rs.save_as(os.path.join(saveLocation,file_name), write_like_original=False)
+    
 if __name__ == '__main__':
-    ctDir ,rsPath = get_lists(sys.argv)
+    # ctDir ,rsPath = get_lists(sys.argv)
+    ctDir, rsPath, saveLocation = get_lists()
     process = Process(ctDir,rsPath)
+    saveOutput(process.ds,saveLocation)
 
 
 """
