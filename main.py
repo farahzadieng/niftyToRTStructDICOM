@@ -37,8 +37,10 @@ class Process:
             # points = np.zeros([val.shape[0] * 3],dtype='float')
             points = [None] * (val.shape[0] * 3)
             for index in range(val.shape[0]):
-                points[(3*(index+1))-3] = val[index,0]
-                points[(3*(index+1))-2] = val[index,1]
+                # points[(3*(index+1))-3] = (val[index,0]  * self.header.pixelSize[0]) + self.header.x0
+                # points[(3*(index+1))-2] = (val[index,1] * self.header.pixelSize[1]) + self.header.y0
+                points[(3*(index+1))-3] = (val[index,1] * self.header.pixelSize[1]) + self.header.y0
+                points[(3*(index+1))-2] = (val[index,0]  * self.header.pixelSize[0]) + self.header.x0
                 points[(3*(index+1))-1] = imagePosition[idx,3]
             contourPoints.append(points)
         return contourPoints
@@ -195,7 +197,7 @@ def get_lists():
 
 def saveOutput(rs, saveLocation):
     suffix = '.dcm'
-    file_name = 'RS.'+str(rs.SOPInstanceUID)+suffix
+    file_name = 'RS3.'+str(rs.SOPInstanceUID)+suffix
     rs.save_as(os.path.join(saveLocation,file_name), write_like_original=False)
     
 if __name__ == '__main__':
