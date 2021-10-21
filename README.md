@@ -6,3 +6,4 @@
   2- Only creates body contour 
   3 - CT Serie must be placed in a clean directory 
     * No CT check happens
+  4- Update
