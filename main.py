@@ -28,7 +28,11 @@ class Process:
 
     # EDIT    
     def get_contour(self,rsPath,imagePosition):
-        rs = nib.load(rsPath).get_fdata()
+        if rsPath[-3:]=='nii':
+            rs = nib.load(rsPath).get_fdata()
+        elif rsPath[-3:]=='npy':
+            # rs = np.load(rsPath)
+            rs = np.transpose(np.load(rsPath),(1,2,0))
         contourList = []
         for i in range(rs.shape[2]):
             contourList.append(measure.find_contours(rs[:,:,i])[0])
@@ -36,6 +40,7 @@ class Process:
         for idx,val in enumerate(contourList):
             # points = np.zeros([val.shape[0] * 3],dtype='float')
             points = [None] * (val.shape[0] * 3)
+            print(idx,"\t",val.shape)
             for index in range(val.shape[0]):
                 # points[(3*(index+1))-3] = (val[index,0]  * self.header.pixelSize[0]) + self.header.x0
                 # points[(3*(index+1))-2] = (val[index,1] * self.header.pixelSize[1]) + self.header.y0
