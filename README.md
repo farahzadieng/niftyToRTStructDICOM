@@ -11,3 +11,9 @@
     * No CT check happens
  
  ### Updated version : 0.0.9 (10-21-2021)
+
+
+ ## TO-DO List : 
+ [] Update version id in code 
+ [] round values in generated mask 
+ [] try to smooth edges ! 
